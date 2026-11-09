@@ -10,8 +10,11 @@ with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 
 def get_version():
+    # CI computes the version outside the build container, where git may not see the tags
+    if os.environ.get("PYSURVIVE_VERSION"):
+        return os.environ["PYSURVIVE_VERSION"]
     try:
-        version = subprocess.check_output(["git", "describe", "--tags", "--long"], stderr=subprocess.DEVNULL)
+        version = subprocess.check_output(["git", "describe", "--tags", "--long", "--match", "v[0-9]*"], stderr=subprocess.DEVNULL)
         version = version.strip().decode('utf-8').replace("-", ".")[1:]
         return version[:version.rfind("g")-1]
     except (subprocess.CalledProcessError, OSError):
@@ -51,7 +54,9 @@ setup(name='pysurvive',
       packages=['pysurvive'],
       package_dir={'pysurvive': 'bindings/python/pysurvive'},
       package_data={'pysurvive': ['images/*']},
-      install_requires=['gooey'],
+      # The GUI launcher (`python -m pysurvive`) is optional: gooey pulls in wxPython,
+      # which has no Linux wheels and needs GTK to build. The library needs nothing else.
+      extras_require={'gui': ['gooey']},
       include_package_data=False,
       license='MIT',
       cmake_args=cmake_args

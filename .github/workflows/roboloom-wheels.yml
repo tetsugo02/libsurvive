@@ -1,0 +1,68 @@
+# Linux wheels of pysurvive for roboloom (https://github.com/tetsugo02/roboloom).
+#
+# Builds a manylinux_2_28 x86_64 wheel for CPython 3.12 with libusb bundled, so users
+# install pysurvive without a C toolchain or libusb headers (the tracker's udev rules are
+# still needed). A tag `roboloom-<n>` publishes the wheel as a GitHub release.
+
+name: roboloom wheels
+
+on:
+  push:
+    branches: [roboloom]
+    tags: ["roboloom-*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write  # create the release on a roboloom-* tag
+
+jobs:
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # git describe needs the upstream v* tags
+          submodules: recursive
+
+      - name: Version
+        id: version
+        run: |
+          git fetch --tags --force https://github.com/collabora/libsurvive.git 'refs/tags/v*:refs/tags/v*' || true
+          d=$(git describe --tags --long --match 'v[0-9]*')
+          v=${d#v}; v=${v%-g*}; v=${v//-/.}
+          echo "PYSURVIVE_VERSION=$v" >> "$GITHUB_ENV"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "pysurvive $v ($d)"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: |
+          python -m pip install cibuildwheel==4.3.5
+          python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp312-manylinux_x86_64
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_BEFORE_ALL_LINUX: dnf install -y libusb1-devel zlib-devel
+          CIBW_ENVIRONMENT_PASS_LINUX: PYSURVIVE_VERSION
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: >-
+            auditwheel repair -w {dest_dir} {wheel} && auditwheel show {dest_dir}/*.whl
+          CIBW_TEST_COMMAND: python {project}/.github/roboloom_smoke_test.py
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pysurvive-${{ steps.version.outputs.version }}-cp312-manylinux_2_28_x86_64
+          path: wheelhouse/*.whl
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/roboloom-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" wheelhouse/*.whl \
+            --title "$GITHUB_REF_NAME (pysurvive ${{ steps.version.outputs.version }})" \
+            --notes "pysurvive ${{ steps.version.outputs.version }} for CPython 3.12, manylinux_2_28 x86_64, libusb bundled. gooey (the GUI launcher) is the optional extra \`gui\`. Built from $GITHUB_SHA."

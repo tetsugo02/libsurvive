@@ -3,7 +3,10 @@ import subprocess
 import pysurvive
 import sys
 import os
-from gooey import Gooey, GooeyParser
+try:
+    from gooey import Gooey, GooeyParser
+except ImportError:
+    sys.exit("the pysurvive GUI needs gooey: pip install 'pysurvive[gui]'")
 
 @Gooey(tabbed_groups=True,
        image_dir=os.path.dirname(os.path.realpath(__file__)) + "/images",
