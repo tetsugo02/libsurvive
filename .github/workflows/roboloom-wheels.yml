@@ -1,8 +1,9 @@
 # Linux wheels of pysurvive for roboloom (https://github.com/tetsugo02/roboloom).
 #
-# Builds a manylinux_2_28 x86_64 wheel for CPython 3.12 with libusb bundled, so users
-# install pysurvive without a C toolchain or libusb headers (the tracker's udev rules are
-# still needed). A tag `roboloom-<n>` publishes the wheel as a GitHub release.
+# Builds a manylinux_2_28 x86_64 wheel for CPython 3.12 with libusb bundled (built
+# without udev, so no system udev library is bundled), so users install pysurvive without
+# a C toolchain or libusb headers; the tracker's udev rules are still needed. A tag
+# `roboloom-<n>` publishes the wheel as a GitHub release.
 
 name: roboloom wheels
 
@@ -47,7 +48,8 @@ jobs:
           CIBW_BUILD: cp312-manylinux_x86_64
           CIBW_ARCHS_LINUX: x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_BEFORE_ALL_LINUX: dnf install -y libusb1-devel zlib-devel
+          CIBW_BEFORE_ALL_LINUX: sh {project}/.github/roboloom_libusb.sh  # libusb without udev
+          CIBW_ENVIRONMENT_LINUX: PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
           CIBW_ENVIRONMENT_PASS_LINUX: PYSURVIVE_VERSION
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: >-
             auditwheel repair -w {dest_dir} {wheel} && auditwheel show {dest_dir}/*.whl

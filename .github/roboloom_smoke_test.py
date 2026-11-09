@@ -24,6 +24,11 @@ assert importlib.util.find_spec("gooey") is None or "--gui" in sys.argv, (
     "gooey must not be installed by default"
 )
 
+libs = sorted(p.name for p in (package.parent / "pysurvive.libs").glob("*.so*"))
+print("bundled:", ", ".join(libs))
+assert any(name.startswith("libusb") for name in libs), "libusb is not bundled"
+assert not any(name.startswith("libudev") for name in libs), "libudev must not be bundled"
+
 pysurvive.init_plugins()  # dlopen()s every plugin: fails on a missing shared library
 items = list(pysurvive.config_items())
 print("config items:", len(items))
@@ -32,7 +37,7 @@ assert items, "no configuration items after loading the plugins"
 child = (
     "import os, pysurvive\n"
     "ctx = pysurvive.SimpleContext(['smoke'])\n"
-    "print('objects:', [o.Name() for o in ctx.Objects()], 'running:', ctx.Running())\n"
+    "print('objects:', [o.Name() for o in ctx.Objects()], 'running:', ctx.Running(), flush=True)\n"
     "os._exit(0)\n"
 )
 result = subprocess.run(
