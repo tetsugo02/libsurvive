@@ -38,6 +38,8 @@ jobs:
           # fake setup trips an internal assert in survive_config_bind_variable that has
           # nothing to do with the transfer logic. AddressSanitizer stays on. One process
           # per case: libsurvive's config bindings are process-global.
+          # leaks: the test never closes its context; use-after-free is what matters here
+          export ASAN_OPTIONS=detect_leaks=0
           for case in TimeoutBelowThresholdResubmits StallClearsHaltBeforeRetry; do
             echo "== $case"
             build/src/test_cases/test-driver_vive_timeout_stall_test "$case"
