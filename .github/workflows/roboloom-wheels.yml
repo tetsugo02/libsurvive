@@ -34,7 +34,12 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DUSE_ASAN=ON -DENABLE_TESTS=ON -DUSE_EIGEN=ON -DDOWNLOAD_EIGEN=ON
           cmake --build build --target test-driver_vive_timeout_stall_test
-          ctest --test-dir build -R driver_vive_timeout_stall_test --output-on-failure
+          # one process per case: libsurvive's config bindings are process-global and
+          # a Debug build asserts when a second context binds them again
+          for case in TimeoutBelowThresholdResubmits StallClearsHaltBeforeRetry; do
+            echo "== $case"
+            build/src/test_cases/test-driver_vive_timeout_stall_test "$case"
+          done
 
   wheel:
     needs: usb-transfer-test
